@@ -1,0 +1,20 @@
+{
+  "name": "wikicious-keeper",
+  "version": "1.0.0",
+  "description": "24/7 keeper for Wikicious DEX V6: liquidations, funding, order execution",
+  "type": "module",
+  "main": "src/index.js",
+  "scripts": {
+    "start": "node --enable-source-maps src/index.js",
+    "dev": "node --watch --enable-source-maps src/index.js",
+    "test:e2e": "node scripts/e2e-healthcheck.mjs"
+  },
+  "dependencies": {
+    "viem": "^2.21.0",
+    "dotenv": "^16.4.5"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "license": "MIT"
+}
