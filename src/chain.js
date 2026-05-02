@@ -41,6 +41,9 @@ export const walletClient = createWalletClient({
   transport: transports.length > 1 ? fallback(transports, { rank: true }) : transports[0],
 });
 
+const txWarnCache = new Map();
+const TX_WARN_COOLDOWN_MS = 60_000;
+
 /** Send a tx with simulation + gas cap. Returns hash or null if skipped. */
 export async function safeSend({ address, abi, functionName, args, label }) {
   if (config.dryRun) {
@@ -68,7 +71,14 @@ export async function safeSend({ address, abi, functionName, args, label }) {
     console.log(`[tx] ${label} sent: ${hash}`);
     return hash;
   } catch (e) {
-    console.warn(`[tx] ${label} simulation/send failed: ${e.shortMessage || e.message}`);
+    const reason = e?.shortMessage || e?.message || "unknown-error";
+    const dedupeKey = `${label}|${functionName}|${reason}`;
+    const now = Date.now();
+    const last = txWarnCache.get(dedupeKey) || 0;
+    if (now - last >= TX_WARN_COOLDOWN_MS) {
+      txWarnCache.set(dedupeKey, now);
+      console.warn(`[tx] ${label} simulation/send failed: ${reason}`);
+    }
     return null;
   }
 }

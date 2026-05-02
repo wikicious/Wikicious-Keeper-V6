@@ -166,3 +166,9 @@ These endpoints are intentionally backend-friendly so your mobile app can consum
 - Global gas cap blocks expensive txs.
 - Circuit breaker auto-halts write paths.
 - Set `DRY_RUN=true` for shadow mode.
+
+## Troubleshooting noisy `simulation/send failed` logs
+
+- Revert logs like `settleFunding(...) reverted` or `automation:* reverted` are often no-op conditions (nothing due, guard checks, or strategy preconditions not met).
+- Keeper now rate-limits identical tx-failure log lines to reduce spam while still surfacing the first occurrence.
+- If you still see frequent reverts, narrow active markets with `MARKETS_TO_WATCH` and disable unused automation addresses in `.env`.
