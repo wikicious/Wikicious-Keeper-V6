@@ -77,13 +77,47 @@ pm2 save
 pm2 startup
 ```
 
+### If frontend is on Vercel and backend is on `api.wikicious.com`
+
+Set backend CORS and auth so browser requests from Vercel can succeed:
+
+```bash
+# In backend .env
+API_CORS_ORIGIN=https://<your-vercel-app>.vercel.app
+# If you use API_KEY, frontend must send Authorization or x-api-key headers
+API_KEY=your_secure_api_key
+```
+
+If using nginx on the backend host, ensure upstream points to keeper API port `8787`:
+
+```nginx
+location / {
+    proxy_pass http://127.0.0.1:8787;
+    proxy_http_version 1.1;
+    proxy_set_header Host $host;
+    proxy_set_header X-Real-IP $remote_addr;
+    proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+    proxy_set_header X-Forwarded-Proto $scheme;
+}
+```
+
+Then reload services:
+
+```bash
+docker compose up -d
+sudo nginx -t && sudo systemctl reload nginx
+curl https://api.wikicious.com/health
+```
+
 ## Environment
 
 | Var | Required | Description |
 |---|---|---|
 | `PRIVATE_KEY` | yes | Keeper EOA private key. |
 | `RPC_URL` | yes | Arbitrum RPC URL. |
+| `RPC_URLS` | no | Comma-separated backup Arbitrum RPC URLs used for automatic failover/ranking. |
 | `RPC_WS_URL` | no | Optional websocket RPC URL. |
+| `RPC_WS_URLS` | no | Optional comma-separated backup websocket RPC URLs. |
 | `POLL_INTERVAL_MS` | no | Loop interval (default `4000`). |
 | `DRY_RUN` | no | If `true`, no tx is broadcast. |
 | `MARKETS_TO_WATCH` | no | CSV market indexes (empty = all). |

@@ -3,7 +3,9 @@ import "dotenv/config";
 export const config = {
   privateKey: requireEnv("PRIVATE_KEY"),
   rpcUrl: requireEnv("RPC_URL"),
+  rpcUrls: parseCsv(process.env.RPC_URLS),
   rpcWsUrl: process.env.RPC_WS_URL || "",
+  rpcWsUrls: parseCsv(process.env.RPC_WS_URLS),
   pollIntervalMs: Number(process.env.POLL_INTERVAL_MS || 4000),
   minLiquidationProfit: Number(process.env.MIN_LIQUIDATION_PROFIT || 1),
   dryRun: process.env.DRY_RUN === "true",
@@ -49,6 +51,13 @@ export const config = {
   pythPriceUrl: process.env.PYTH_PRICE_URL || "",
   chainlinkPriceUrl: process.env.CHAINLINK_PRICE_URL || "",
 };
+
+function parseCsv(value) {
+  return String(value || "")
+    .split(",")
+    .map((s) => s.trim())
+    .filter(Boolean);
+}
 
 function requireEnv(key) {
   const v = process.env[key];
