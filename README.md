@@ -31,13 +31,93 @@ docker compose up -d
 curl http://localhost:8787/health
 ```
 
+## Deploy on Oracle Cloud (Ubuntu VM)
+
+Use these commands on a fresh Oracle Cloud Compute instance (Ubuntu 22.04/24.04):
+
+```bash
+# 1) Base packages + Docker
+sudo apt update && sudo apt upgrade -y
+sudo apt install -y ca-certificates curl git ufw
+curl -fsSL https://get.docker.com | sudo sh
+sudo usermod -aG docker $USER
+newgrp docker
+
+# 2) Clone project
+git clone https://github.com/<your-org>/Wikicious-Keeper-V6.git
+cd Wikicious-Keeper-V6
+
+# 3) Configure env
+cp .env.example .env
+cat > .env <<'EOF'
+PRIVATE_KEY=your_keeper_private_key
+RPC_URL=https://arb-mainnet.g.alchemy.com/v2/YOUR_KEY
+API_PORT=8787
+EOF
+# Add any other optional env vars as needed
+
+# 4) Start keeper + API
+docker compose up -d --build
+
+# 5) Verify
+docker compose ps
+curl http://127.0.0.1:8787/health
+# Expect: STATUS includes "(healthy)" and health JSON includes `"ok":true`
+```
+
+Optional: run with PM2 (without Docker):
+
+```bash
+sudo apt update
+sudo apt install -y nodejs npm
+npm install
+npm install -g pm2
+pm2 start src/index.js --name wikicious-keeper
+pm2 save
+pm2 startup
+```
+
+### If frontend is on Vercel and backend is on `api.wikicious.com`
+
+Set backend CORS and auth so browser requests from Vercel can succeed:
+
+```bash
+# In backend .env
+API_CORS_ORIGIN=https://<your-vercel-app>.vercel.app
+# If you use API_KEY, frontend must send Authorization or x-api-key headers
+API_KEY=your_secure_api_key
+```
+
+If using nginx on the backend host, ensure upstream points to keeper API port `8787`:
+
+```nginx
+location / {
+    proxy_pass http://127.0.0.1:8787;
+    proxy_http_version 1.1;
+    proxy_set_header Host $host;
+    proxy_set_header X-Real-IP $remote_addr;
+    proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+    proxy_set_header X-Forwarded-Proto $scheme;
+}
+```
+
+Then reload services:
+
+```bash
+docker compose up -d
+sudo nginx -t && sudo systemctl reload nginx
+curl https://api.wikicious.com/health
+```
+
 ## Environment
 
 | Var | Required | Description |
 |---|---|---|
 | `PRIVATE_KEY` | yes | Keeper EOA private key. |
 | `RPC_URL` | yes | Arbitrum RPC URL. |
+| `RPC_URLS` | no | Comma-separated backup Arbitrum RPC URLs used for automatic failover/ranking. |
 | `RPC_WS_URL` | no | Optional websocket RPC URL. |
+| `RPC_WS_URLS` | no | Optional comma-separated backup websocket RPC URLs. |
 | `POLL_INTERVAL_MS` | no | Loop interval (default `4000`). |
 | `DRY_RUN` | no | If `true`, no tx is broadcast. |
 | `MARKETS_TO_WATCH` | no | CSV market indexes (empty = all). |

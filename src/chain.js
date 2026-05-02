@@ -1,4 +1,4 @@
-import { createPublicClient, createWalletClient, http, parseGwei } from "viem";
+import { createPublicClient, createWalletClient, fallback, http, parseGwei } from "viem";
 import { privateKeyToAccount } from "viem/accounts";
 import { arbitrum } from "viem/chains";
 import { config } from "./config.js";
@@ -8,15 +8,37 @@ export const txAccount = config.gasPrivateKey
   ? privateKeyToAccount(config.gasPrivateKey.startsWith("0x") ? config.gasPrivateKey : `0x${config.gasPrivateKey}`)
   : account;
 
+const rpcHttpUrls = [config.rpcUrl, ...config.rpcUrls].filter(Boolean);
+const transports = rpcHttpUrls.map((url, index) =>
+  http(url, {
+    retryCount: 1,
+    retryDelay: 200,
+    timeout: 8_000,
+    rank: {
+      interval: 15_000,
+      sampleCount: 4,
+      timeout: 1_000,
+      weights: {
+        latency: 0.4,
+        stability: 0.6,
+      },
+    },
+  }),
+);
+
+if (transports.length > 1) {
+  console.log(`[rpc] configured ${transports.length} RPC endpoints with failover`);
+}
+
 export const publicClient = createPublicClient({
   chain: arbitrum,
-  transport: http(config.rpcUrl),
+  transport: transports.length > 1 ? fallback(transports, { rank: true }) : transports[0],
 });
 
 export const walletClient = createWalletClient({
   account: txAccount,
   chain: arbitrum,
-  transport: http(config.rpcUrl),
+  transport: transports.length > 1 ? fallback(transports, { rank: true }) : transports[0],
 });
 
 /** Send a tx with simulation + gas cap. Returns hash or null if skipped. */
